@@ -1,0 +1,44 @@
+name: journal
+description: A minimal, biometric-locked journal app.
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.6.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Auth
+  local_auth: ^2.3.0
+
+  # Storage (encrypted SQLite + FTS5 search)
+  sqflite_sqlcipher: ^3.1.0+1
+  flutter_secure_storage: ^9.2.2
+  path: ^1.9.0
+  path_provider: ^2.1.5
+
+  # Sharing / export
+  share_plus: ^10.1.2
+  archive: ^3.6.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.2
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#3D5A80"
+  adaptive_icon_foreground: "assets/icon/icon.png"
+  min_sdk_android: 23
+
+flutter:
+  uses-material-design: true
