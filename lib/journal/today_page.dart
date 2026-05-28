@@ -84,6 +84,18 @@ class _TodayPageState extends State<TodayPage> {
     if (d != null) await _repo.upsert(d, _controller.text);
   }
 
+  // Workaround for Android IME (Korean Hangul): if a composition is active
+  // when the user taps to move the caret, Flutter sometimes leaves the
+  // selection as [composition-end → tap-point] instead of collapsing to the
+  // tap. Force-commit the composition on tap so the tap can place a clean
+  // caret.
+  void _clearComposing() {
+    final v = _controller.value;
+    if (v.composing.isValid && !v.composing.isCollapsed) {
+      _controller.value = v.copyWith(composing: TextRange.empty);
+    }
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -121,26 +133,6 @@ class _TodayPageState extends State<TodayPage> {
         ),
         elevation: 0,
         actions: [
-          IconButton(
-            tooltip: 'Save',
-            icon: const Icon(Icons.check),
-            onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              await _flush();
-              if (!mounted) return;
-              messenger.hideCurrentSnackBar();
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Row(children: [
-                    Icon(Icons.check_circle, color: Colors.white, size: 18),
-                    SizedBox(width: 8),
-                    Text('Saved'),
-                  ]),
-                  duration: Duration(seconds: 1),
-                ),
-              );
-            },
-          ),
           PopupMenuButton<String>(
             onSelected: (value) async {
               // Capture context-bound objects before the async gap.
@@ -197,6 +189,7 @@ class _TodayPageState extends State<TodayPage> {
                   ),
                   style: const TextStyle(fontSize: 17, height: 1.5),
                   onChanged: _onChanged,
+                  onTap: _clearComposing,
                 ),
               ),
             ),

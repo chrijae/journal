@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Android release signing — never commit
+/android/key.properties
+/android/app/*.jks
+/android/app/*.keystore
+
+# Local scratch & personal docs at repo root
+/url.txt
+/*.pdf
+/*.html

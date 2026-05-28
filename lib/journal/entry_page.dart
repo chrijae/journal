@@ -40,9 +40,12 @@ class _EntryPageState extends State<EntryPage> {
     });
   }
 
-  Future<void> _flush() async {
-    _debounce?.cancel();
-    await _repo.upsert(widget.date, _controller.text);
+  // See today_page._clearComposing — same Hangul IME tap-selection workaround.
+  void _clearComposing() {
+    final v = _controller.value;
+    if (v.composing.isValid && !v.composing.isCollapsed) {
+      _controller.value = v.copyWith(composing: TextRange.empty);
+    }
   }
 
   @override
@@ -58,28 +61,6 @@ class _EntryPageState extends State<EntryPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.date),
-        actions: [
-          IconButton(
-            tooltip: 'Save',
-            icon: const Icon(Icons.check),
-            onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              await _flush();
-              if (!mounted) return;
-              messenger.hideCurrentSnackBar();
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Row(children: [
-                    Icon(Icons.check_circle, color: Colors.white, size: 18),
-                    SizedBox(width: 8),
-                    Text('Saved'),
-                  ]),
-                  duration: Duration(seconds: 1),
-                ),
-              );
-            },
-          ),
-        ],
       ),
       body: !_loaded
           ? const SizedBox.shrink()
@@ -98,6 +79,7 @@ class _EntryPageState extends State<EntryPage> {
                   ),
                   style: const TextStyle(fontSize: 17, height: 1.5),
                   onChanged: _onChanged,
+                  onTap: _clearComposing,
                 ),
               ),
             ),
