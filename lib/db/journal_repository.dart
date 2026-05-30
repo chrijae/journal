@@ -28,6 +28,13 @@ class SearchHit {
 }
 
 class JournalRepository {
+  // Single shared instance so every screen uses one SQLCipher connection.
+  // Multiple connections to the same encrypted file risk SQLITE_BUSY when
+  // autosave timers on different pages fire near-simultaneously.
+  JournalRepository._();
+  static final JournalRepository instance = JournalRepository._();
+  factory JournalRepository() => instance;
+
   static const _dbKeyStorageKey = 'journal_db_key_v1';
   static const _dbFilename = 'journal.db';
   static const _secureStorage = FlutterSecureStorage(

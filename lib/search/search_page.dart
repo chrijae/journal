@@ -82,10 +82,14 @@ class _SearchPageState extends State<SearchPage> {
         return ListTile(
           title: Text(hit.date),
           subtitle: Text(hit.snippet, maxLines: 2, overflow: TextOverflow.ellipsis),
-          onTap: () {
-            Navigator.of(context).push(MaterialPageRoute(
+          onTap: () async {
+            await Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => EntryPage(date: hit.date),
             ));
+            // Re-run the query so edits made in EntryPage are reflected.
+            if (mounted && _activeQuery.trim().isNotEmpty) {
+              _run(_activeQuery);
+            }
           },
         );
       },

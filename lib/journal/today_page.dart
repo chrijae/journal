@@ -74,14 +74,42 @@ class _TodayPageState extends State<TodayPage> {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
       final d = _date;
-      if (d != null) _repo.upsert(d, value);
+      if (d != null) _repo.upsert(d, _persistable(value));
     });
   }
 
   Future<void> _flush() async {
     _debounce?.cancel();
     final d = _date;
-    if (d != null) await _repo.upsert(d, _controller.text);
+    if (d != null) await _repo.upsert(d, _persistable(_controller.text));
+  }
+
+  // The editor pre-fills a session timestamp (HH:MM) before the user writes
+  // anything. If they leave without adding real text, persist an empty string
+  // so the day doesn't surface in the archive as a bare timestamp.
+  String _persistable(String raw) {
+    final hasRealText = raw
+        .split('\n')
+        .map((l) => l.trim())
+        .any((l) => l.isNotEmpty && !_timestampPattern.hasMatch(l));
+    return hasRealText ? raw : '';
+  }
+
+  // Re-read today's content after returning from a screen that may have edited
+  // the same date (search/archive → EntryPage). Without this, the stale
+  // in-memory controller would overwrite those edits on the next autosave or
+  // on dispose.
+  Future<void> _reloadFromDb() async {
+    final d = _date;
+    if (d == null) return;
+    final entry = await _repo.getByDate(d);
+    if (!mounted) return;
+    final content = entry?.content ?? '';
+    if (content == _controller.text) return;
+    setState(() {
+      _controller.text = content;
+      _controller.selection = TextSelection.collapsed(offset: content.length);
+    });
   }
 
   // Workaround for Android IME (Korean Hangul): if a composition is active
@@ -101,7 +129,7 @@ class _TodayPageState extends State<TodayPage> {
     _debounce?.cancel();
     // Best-effort sync write on dispose; result intentionally not awaited.
     final d = _date;
-    if (d != null) _repo.upsert(d, _controller.text);
+    if (d != null) _repo.upsert(d, _persistable(_controller.text));
     _controller.dispose();
     _focus.dispose();
     super.dispose();
@@ -145,6 +173,7 @@ class _TodayPageState extends State<TodayPage> {
                   await navigator.push(MaterialPageRoute(
                     builder: (_) => const SearchPage(),
                   ));
+                  if (mounted) await _reloadFromDb();
                   break;
                 case 'archive':
                   final picked = await navigator.push<String>(
@@ -155,6 +184,7 @@ class _TodayPageState extends State<TodayPage> {
                       builder: (_) => EntryPage(date: picked),
                     ));
                   }
+                  if (mounted) await _reloadFromDb();
                   break;
                 case 'export':
                   await ExportService().exportAll(messenger);
