@@ -1,0 +1,76 @@
+# Codemagic CI/CD — build the iOS app in the cloud (no Mac required) and
+# ship it to TestFlight. Android is already built locally, but an Android
+# workflow is included for parity once you want cloud builds there too.
+#
+# ── ONE-TIME SETUP (done in the Codemagic web UI / Apple, not in code) ──
+#   1. Apple Developer Program membership ($99/yr).
+#   2. App Store Connect → create the app with bundle id `com.hakjae.journal`.
+#   3. App Store Connect → Users and Access → Integrations → create an
+#      App Store Connect API key (Issuer ID, Key ID, .p8 file).
+#   4. Codemagic → Teams → Integrations → App Store Connect → add that key.
+#      Name it exactly `codemagic` (or change `app_store_connect:` below).
+#   5. Codemagic → connect this Git repository.
+# After that, every run signs, builds, and uploads to TestFlight automatically.
+
+workflows:
+  ios-testflight:
+    name: iOS — build & TestFlight
+    instance_type: mac_mini_m2          # Codemagic's macOS build VM
+    max_build_duration: 60
+    integrations:
+      app_store_connect: codemagic       # ← the API-key name from step 4
+    environment:
+      ios_signing:
+        distribution_type: app_store     # automatic signing for App Store/TestFlight
+        bundle_identifier: com.hakjae.journal
+      vars:
+        # Numeric Apple ID of the app in App Store Connect. Fill this in after
+        # you create the app (App Store Connect → App Information → "Apple ID").
+        APP_APPLE_ID: "0000000000"
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Flutter packages
+        script: flutter pub get
+      - name: Auto-increment build number
+        # TestFlight rejects duplicate build numbers; pull the latest from
+        # App Store Connect and bump it so every upload is unique.
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_APPLE_ID" 2>/dev/null || echo 0)
+          echo "BUILD_NUMBER=$(($LATEST + 1))" >> $CM_ENV
+      - name: Install CocoaPods
+        script: find . -name "Podfile" -execdir pod install \;
+      - name: Set up code signing profiles
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --build-number=${BUILD_NUMBER:-1} \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true       # lands in TestFlight; manual promote to App Store
+        # beta_groups:                    # uncomment to auto-add to a tester group
+        #   - Internal testers
+
+  android-release:
+    name: Android — build AAB (optional, for cloud parity)
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+    scripts:
+      - name: Flutter packages
+        script: flutter pub get
+      - name: Build App Bundle
+        # Signing keystore is configured via android/key.properties; add it to
+        # Codemagic as encrypted env vars when you move Android builds here.
+        script: flutter build appbundle --release
+    artifacts:
+      - build/app/outputs/bundle/release/*.aab
