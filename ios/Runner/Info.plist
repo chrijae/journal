@@ -49,5 +49,11 @@
 	<!-- Face ID prompt shown by local_auth -->
 	<key>NSFaceIDUsageDescription</key>
 	<string>Unlock your journal with Face ID.</string>
+
+	<!-- Export compliance: the app uses only standard encryption (AES via
+	     SQLCipher) to protect the user's own local data, which qualifies for
+	     the export exemption. Declaring false skips the per-upload prompt. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
