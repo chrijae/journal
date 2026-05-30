@@ -150,14 +150,6 @@ class JournalRepository {
     );
   }
 
-  // Remove an entry by date. The entries_ad trigger keeps the FTS index in
-  // sync, so deleted text stops surfacing in search. Restoring is just an
-  // upsert of the saved content (see ArchivePage's Undo).
-  Future<void> delete(String date) async {
-    final db = await _open();
-    await db.delete('entries', where: 'date = ?', whereArgs: [date]);
-  }
-
   Future<List<Entry>> listAll({int? limit}) async {
     final db = await _open();
     final rows = await db.query(
