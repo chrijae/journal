@@ -11,12 +11,48 @@ class ArchivePage extends StatefulWidget {
 
 class _ArchivePageState extends State<ArchivePage> {
   final _repo = JournalRepository();
-  late Future<List<Entry>> _future;
+  // Held in state (not a one-shot Future) so a swipe can optimistically remove
+  // a row and an Undo can put it back without re-reading the whole DB.
+  List<Entry>? _entries;
 
   @override
   void initState() {
     super.initState();
-    _future = _repo.listAll();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final entries = await _repo.listAll();
+    if (!mounted) return;
+    setState(() => _entries = entries);
+  }
+
+  // Optimistically drop the row, delete from the DB, and offer an Undo. Undo
+  // restores the entry (content + its place in the reverse-chron list) by
+  // re-inserting and re-sorting; the upsert rebuilds the search index too.
+  Future<void> _deleteEntry(Entry entry) async {
+    setState(() => _entries!.removeWhere((e) => e.date == entry.date));
+    await _repo.delete(entry.date);
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Deleted ${entry.date}'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () async {
+            await _repo.upsert(entry.date, entry.content);
+            if (!mounted) return;
+            setState(() {
+              _entries!
+                ..add(entry)
+                ..sort((a, b) => b.date.compareTo(a.date));
+            });
+          },
+        ),
+      ),
+    );
   }
 
   static final _timestampPattern = RegExp(r'^\d{2}:\d{2}$');
@@ -56,13 +92,12 @@ class _ArchivePageState extends State<ArchivePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Past entries')),
-      body: FutureBuilder<List<Entry>>(
-        future: _future,
-        builder: (context, snap) {
-          if (!snap.hasData) {
+      body: Builder(
+        builder: (context) {
+          final entries = _entries;
+          if (entries == null) {
             return const Center(child: CircularProgressIndicator());
           }
-          final entries = snap.data!;
           if (entries.isEmpty) {
             return const Center(child: Text('No past entries yet.'));
           }
@@ -72,10 +107,24 @@ class _ArchivePageState extends State<ArchivePage> {
             itemBuilder: (_, i) {
               final e = entries[i];
               final segments = _segments(e.content).take(2).toList();
-              return _ArchiveTile(
-                date: e.date,
-                segments: segments,
-                onTap: () => Navigator.of(context).pop(e.date),
+              return Dismissible(
+                key: ValueKey(e.date),
+                direction: DismissDirection.endToStart,
+                onDismissed: (_) => _deleteEntry(e),
+                background: Container(
+                  color: Theme.of(context).colorScheme.error,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Icon(
+                    Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.onError,
+                  ),
+                ),
+                child: _ArchiveTile(
+                  date: e.date,
+                  segments: segments,
+                  onTap: () => Navigator.of(context).pop(e.date),
+                ),
               );
             },
           );
