@@ -16,8 +16,10 @@ class JournalApp extends StatefulWidget {
 }
 
 class _JournalAppState extends State<JournalApp> with WidgetsBindingObserver {
-  // Re-lock the app if it has been backgrounded for this long.
-  static const _relockAfter = Duration(minutes: 5);
+  // Re-lock the app if it has been backgrounded for this long. A short grace
+  // window lets brief switches (checking a notification, copying text) skip
+  // re-auth, while still locking almost immediately if the phone is set down.
+  static const _relockAfter = Duration(seconds: 30);
 
   DateTime? _backgroundedAt;
 
