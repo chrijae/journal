@@ -194,7 +194,7 @@ class _TodayPageState extends State<TodayPage> {
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'search', child: Text('Search')),
               PopupMenuItem(value: 'archive', child: Text('Past entries')),
-              PopupMenuItem(value: 'export', child: Text('Export')),
+              PopupMenuItem(value: 'export', child: Text('Back up')),
             ],
           ),
         ],

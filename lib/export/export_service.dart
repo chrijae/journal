@@ -17,7 +17,7 @@ class ExportService {
       final entries = await _repo.listAll();
       if (entries.isEmpty) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Nothing to export yet.')),
+          const SnackBar(content: Text('Nothing to back up yet.')),
         );
         return;
       }
@@ -38,7 +38,7 @@ class ExportService {
       final encoded = ZipEncoder().encode(archive);
       if (encoded == null) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Export failed.')),
+          const SnackBar(content: Text('Backup failed.')),
         );
         return;
       }
@@ -47,11 +47,11 @@ class ExportService {
 
       await Share.shareXFiles(
         [XFile(zipPath, mimeType: 'application/zip')],
-        subject: 'My journal export',
+        subject: 'My journal backup',
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Export failed: $e')),
+        SnackBar(content: Text('Backup failed: $e')),
       );
     }
   }
