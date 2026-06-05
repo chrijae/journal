@@ -44,7 +44,10 @@ class _EntryPageState extends State<EntryPage> {
   void _clearComposing() {
     final v = _controller.value;
     if (v.composing.isValid && !v.composing.isCollapsed) {
-      _controller.value = v.copyWith(composing: TextRange.empty);
+      _controller.value = v.copyWith(
+        composing: TextRange.empty,
+        selection: TextSelection.collapsed(offset: v.selection.extentOffset),
+      );
     }
   }
 

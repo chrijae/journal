@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../db/journal_repository.dart';
 import '../export/export_service.dart';
@@ -42,7 +43,23 @@ class _TodayPageState extends State<TodayPage> {
     });
     // Cursor blinks here — request focus on first frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focus.requestFocus();
+      if (mounted) _showKeyboard();
+    });
+  }
+
+  // Raise the soft keyboard on entry. We arrive here right after the system
+  // biometric sheet dismisses, and at that moment the window focus is still
+  // settling — requestFocus() alone frequently fails to bring up the Android
+  // keyboard (which is why a manual tap used to be needed). Explicitly ask the
+  // platform to show it, then retry once after a beat in case the first call
+  // landed before the input connection was ready.
+  void _showKeyboard() {
+    _focus.requestFocus();
+    SystemChannels.textInput.invokeMethod('TextInput.show');
+    Future.delayed(const Duration(milliseconds: 150), () {
+      if (!mounted) return;
+      if (!_focus.hasFocus) _focus.requestFocus();
+      SystemChannels.textInput.invokeMethod('TextInput.show');
     });
   }
 
@@ -115,12 +132,15 @@ class _TodayPageState extends State<TodayPage> {
   // Workaround for Android IME (Korean Hangul): if a composition is active
   // when the user taps to move the caret, Flutter sometimes leaves the
   // selection as [composition-end → tap-point] instead of collapsing to the
-  // tap. Force-commit the composition on tap so the tap can place a clean
-  // caret.
+  // tap. Force-commit the composition AND collapse the selection to the tap
+  // point (the extent) so the tap places a clean caret instead of a range.
   void _clearComposing() {
     final v = _controller.value;
     if (v.composing.isValid && !v.composing.isCollapsed) {
-      _controller.value = v.copyWith(composing: TextRange.empty);
+      _controller.value = v.copyWith(
+        composing: TextRange.empty,
+        selection: TextSelection.collapsed(offset: v.selection.extentOffset),
+      );
     }
   }
 
